@@ -4,15 +4,9 @@ inputElement.addEventListener('change', (e) => {
   imgElement.src = URL.createObjectURL(e.target.files[0]);
 }, false);
 
-function grayscale(){
+function get_plate_img(){
     let mat = cv.imread(imgElement);
-//   var dst = new cv.Mat();
-//   cv.cvtColor(mat, dst, cv.COLOR_RGBA2GRAY, 0);
-//   let R=extract_ch(mat);
-//   console.log(R)
-    // let dst=binarize_with_color_info(mat);
     let dst=processing(mat);
-    // let dst=extract_ch(mat);
     cv.imshow('canvasOutput', dst);
     mat.delete();
     dst.delete();
@@ -41,36 +35,11 @@ function binarize_with_color_info(src){
 
 
 }
-function binarize(src){
-    var dst = new cv.Mat();
-    cv.cvtColor(src, dst, cv.COLOR_RGBA2GRAY, 0);
-    cv.threshold(dst, dst, 100, 200, cv.THRESH_BINARY);
-    // cv.cvtColor(src, src, cv.COLOR_RGBA2GRAY, 0);
-    // cv.medianBlur(src, src, 5);
-    // cv.adaptiveThreshold(src, dst, 200, cv.ADAPTIVE_THRESH_GAUSSIAN_C, cv.THRESH_BINARY, 3, 2);
-    return dst    
-}
 
 function processing(src){
-    // var dst = new cv.Mat();
-    // cv.cvtColor(src, dst, cv.COLOR_RGBA2GRAY, 0);
-    // cv.medianBlur(dst, dst, 5);
-    // cv.Canny(dst, dst, 50, 100, 3, false);
-    // dilation
-    // let M = cv.Mat.ones(3, 3, cv.CV_8U);
-    // let anchor = new cv.Point(-1, -1);
-    // cv.dilate(dst, dst, M, anchor, 1, cv.BORDER_CONSTANT, cv.morphologyDefaultBorderValue());
     let dst = cv.Mat.zeros(src.rows, src.cols, cv.CV_8UC3);
 
     //// binarize
-
-    // cv.cvtColor(src, src, cv.COLOR_RGBA2GRAY, 0);
-    // cv.medianBlur(src, src, 5);
-    // cv.adaptiveThreshold(src, src, 200, cv.ADAPTIVE_THRESH_GAUSSIAN_C, cv.THRESH_BINARY, 3, 2);
-
-    // cv.cvtColor(src, src, cv.COLOR_RGBA2GRAY, 0);
-    // cv.threshold(src, src, 100, 200, cv.THRESH_BINARY);
-
     src= binarize_with_color_info(src);
 
     let contours = new cv.MatVector();
@@ -85,25 +54,14 @@ function processing(src){
         let cnt_length = cv.arcLength(cnt, true);
         console.log(cnt_length)
         // cv.approxPolyDP(cnt, tmp, 3, false);
-
         cv.approxPolyDP(cnt, tmp, cnt_length*0.01, false);
-        // for (let j = 0; j < tmp.data32S.length; j += 2){
-        //     let p = {}
-        //     p.x = tmp.data32S[j]
-        //     p.y = tmp.data32S[j+1]
-        //     console.log(p);
-        //     // points[i].push(p)
-        //   }
         let area = cv.contourArea(tmp, false);
         let polygonnum = tmp.data32S.length;
         if (polygonnum<14 && polygonnum>8 && area>400){
             poly.push_back(tmp);
         }
-        // poly.push_back(tmp);
         cnt.delete();
         tmp.delete();
-        
-
     }
     // draw contours with random Scalar
     for (let i = 0; i < poly.size(); ++i) {
@@ -114,6 +72,15 @@ function processing(src){
     return dst;
 };
 
+function binarize(src){
+    var dst = new cv.Mat();
+    cv.cvtColor(src, dst, cv.COLOR_RGBA2GRAY, 0);
+    cv.threshold(dst, dst, 100, 200, cv.THRESH_BINARY);
+    // cv.cvtColor(src, src, cv.COLOR_RGBA2GRAY, 0);
+    // cv.medianBlur(src, src, 5);
+    // cv.adaptiveThreshold(src, dst, 200, cv.ADAPTIVE_THRESH_GAUSSIAN_C, cv.THRESH_BINARY, 3, 2);
+    return dst    
+}
 
 function onOpenCvReady() {
   document.getElementById('status').innerHTML = 'OpenCV.js is ready.';

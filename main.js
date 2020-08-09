@@ -6,13 +6,29 @@ inputElement.addEventListener('change', (e) => {
 
 function get_plate_img(){
     let mat = cv.imread(imgElement);
+    // debug
+    let dst_d=binarize_with_color_info(mat)
+    cv.imshow('canvasOutput_debug', dst_d);
+    // processing img
     let dst=processing(mat);
     cv.imshow('canvasOutput', dst);
     mat.delete();
     dst.delete();
 }
 
+// RGB条件式に従って二値化する処理
 function binarize_with_color_info(src){
+    let dst = new cv.Mat();
+    let low = new cv.Mat(src.rows, src.cols, src.type(), [130, 140, 140, 0]);
+    let high = new cv.Mat(src.rows, src.cols, src.type(), [255, 255, 255, 255]);
+    // You can try more different parameters
+    cv.inRange(src, low, high, dst);
+        return dst;
+}
+
+
+// RGB条件式に従って二値化する処理（ナイーブ）
+function binarize_with_color_info_(src){
     let dst = cv.Mat.zeros(src.rows, src.cols, cv.CV_8UC1);
     if (src.isContinuous()) {
         for (let row = 0; row < src.rows; ++row) {
@@ -32,8 +48,6 @@ function binarize_with_color_info(src){
         }
     }
     return dst;
-
-
 }
 
 function processing(src){

@@ -7,7 +7,8 @@ inputElement.addEventListener('change', (e) => {
 function get_plate_img(){
     let mat = cv.imread(imgElement);
     // debug
-    let dst_d=binarize_with_color_info(mat)
+    // let dst_d=binarize_with_color_info(mat);
+    let dst_d=resize_image(mat,2);
     cv.imshow('canvasOutput_debug', dst_d);
     // processing img
     let dst=processing(mat);
@@ -16,12 +17,25 @@ function get_plate_img(){
     dst.delete();
 }
 
-// RGB条件式に従って二値化する処理
+// 画像のリサイズ関数
+function resize_image(src,ratio){
+    let dst = new cv.Mat();
+    // get original image size
+    let resized_rows=Math.round(src.rows*ratio);
+    let resized_cols=Math.round(src.cols*ratio);
+    if (ratio>=1){
+        cv.pyrUp(src, dst, new cv.Size(resized_cols, resized_rows), cv.BORDER_DEFAULT);
+    }else{
+        cv.pyrDown(src, dst, new cv.Size(resized_cols, resized_rows), cv.BORDER_DEFAULT);
+    }
+    return dst;
+}
+
+// RGB範囲内か否かで二値化する処理
 function binarize_with_color_info(src){
     let dst = new cv.Mat();
     let low = new cv.Mat(src.rows, src.cols, src.type(), [130, 140, 140, 0]);
     let high = new cv.Mat(src.rows, src.cols, src.type(), [255, 255, 255, 255]);
-    // You can try more different parameters
     cv.inRange(src, low, high, dst);
         return dst;
 }

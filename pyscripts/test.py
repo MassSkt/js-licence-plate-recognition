@@ -7,9 +7,13 @@ from keras.models import model_from_json,load_model
 import glob
 import time
 
-import tensorflowjs as tfjs
-import tensorflow.compat.v1 as tf
-tf.disable_v2_behavior()
+
+import tensorflow as tf
+from keras import backend as K
+config = tf.ConfigProto()
+config.gpu_options.allow_growth = True
+sess = tf.Session(config=config)
+K.set_session(sess)
 
 def load_model_(path):
     try:
@@ -57,19 +61,17 @@ def draw_box(image_path, cor, thickness=3):
 
 
 if __name__ == "__main__":
-    wpod_net_path = "wpod-net.json"
+    wpod_net_path = "pyscripts/wpod-net.json"
     wpod_net = load_model_(wpod_net_path)
     print(wpod_net.summary())
 
-    # モデルオブジェクトmodelを、ディレクトリ'tfjs'に、8ビットの量子化を用いて書き出す。
-    tfjs.converters.save_keras_model(wpod_net, 'tfjs', quantization_dtype=np.uint8)
 
     # Create a list of image paths 
-    image_paths = glob.glob("test_img/*.jpg")
+    image_paths = glob.glob("test_img/*")
     print("Found %i images..."%(len(image_paths)))
 
     # Obtain plate image and its coordinates from an image
-    test_image = image_paths[4]
+    test_image = image_paths[0]
     st=time.time()
     LpImg,cor = get_plate(test_image)
     print("elapsed",time.time()-st)

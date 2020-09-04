@@ -33,10 +33,13 @@ def load_model_(path):
 
 
 if __name__ == "__main__":
-    wpod_net_path = "wpod-net.json"
-    wpod_net = load_model_(wpod_net_path)
-    print(wpod_net.summary())
+    # wpod_net_path = "wpod-net.json"
+    # wpod_net = load_model_(wpod_net_path)
+    # print(wpod_net.summary())
+    model_path = "pyscripts/tf_models/point_model_featuremap_s500-f29_e2000.h5"
+    model_path = "pyscripts/tf_models/point_model_featuremap_s256-f14_e2000_light_ch4-32.h5"
+    model=load_model(model_path)
 
     # モデルオブジェクトmodelを、ディレクトリ'tfjs'に、8ビットの量子化を用いて書き出す。
-    tfjs.converters.save_keras_model(wpod_net, 'tfjs', quantization_dtype=np.uint8)
+    tfjs.converters.save_keras_model(model, 'tfjs', quantization_dtype=np.uint8)
 

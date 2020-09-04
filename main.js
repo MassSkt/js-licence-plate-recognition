@@ -35,6 +35,7 @@ function drawOrgImage(url) {
     }
 }
 
+// ナンバープレートを描画する関数
 function get_plate_img_tf(){
     const INPUT_SIZE=256;
     const OUT_FEATURE_SIZE=14;
@@ -45,6 +46,7 @@ function get_plate_img_tf(){
     let width_org=org_mat.cols;
     let height_org=org_mat.rows;
     let endTime = performance.now(); // 終了時間
+    console.log("read imge time")
     console.log(endTime - startTime); 
 
     // resize された画像を描画 open cv
@@ -52,6 +54,7 @@ function get_plate_img_tf(){
     let resized_mat = resize_image_(org_mat,INPUT_SIZE,INPUT_SIZE);
     cv.imshow('canvasInputResized', resized_mat);
     endTime = performance.now(); // 終了時間
+    console.log("resize imge time")
     console.log(endTime - startTime); 
 
     //  TFによる予測
@@ -68,6 +71,7 @@ function get_plate_img_tf(){
         pred_arr_255.push(Math.round(pred_arr_[i]*255));
     }
     endTime = performance.now(); // 終了時間
+    console.log("TF predict time")
     console.log(endTime - startTime); 
 
     // open cv でナンバープレート反応出力領域を抽出
@@ -78,6 +82,7 @@ function get_plate_img_tf(){
     let plate_rect_margin = get_margin_rect(plate_rect,10,INPUT_SIZE,INPUT_SIZE);
     // console.log(plate_rect_margin);
     endTime = performance.now(); // 終了時間
+    console.log("extract reagion with open cv time")
     console.log(endTime - startTime); 
 
     // 元画像での候補領域矩形座標
@@ -90,22 +95,24 @@ function get_plate_img_tf(){
     cv.imshow('canvasInputFocused', src_org_focused);
     cv.imshow('canvasInputFocusedResized', src_org_focused_resized);
     endTime = performance.now(); // 終了時間
+    console.log("extracted region draw image time")
     console.log(endTime - startTime); 
 
     //候補領域画像で再検査
-    //  tf predict
+    //  TFによる予測
     startTime = performance.now(); // 開始時間
     let img_focus_resized=document.getElementById('canvasInputFocusedResized');
     const tfimgf = tf.browser.fromPixels(img_focus_resized).toFloat();
     let tf_predf=get_plate(tfimgf,0.6);//tf array
     let predf_arr=tf_predf.arraySync();
     const predf_arr_ = [].concat(...predf_arr); 
-    console.log(predf_arr_);
+    // console.log(predf_arr_);
     var predf_arr_255=[];
     for (let i = 0; i < predf_arr_.length; i++) {
         predf_arr_255.push(Math.round(predf_arr_[i]*255));
     }
     endTime = performance.now(); // 終了時間
+    console.log("TF predict time")
     console.log(endTime - startTime); 
 
     // open cv
@@ -115,6 +122,7 @@ function get_plate_img_tf(){
     // let {ret_xs,ret_ys}=get_inplate_cnt(predf_mat);
     cv.imshow('canvasOutput_debug5', predf_mat);
     endTime = performance.now(); // 終了時間
+    console.log("draw extracted image predict time")
     console.log(endTime - startTime); 
 
     // ret_xs=mul_num_to_arr(ret_xs,plate_rect_org['width']/INPUT_SIZE);
@@ -125,12 +133,15 @@ function get_plate_img_tf(){
     let plate_rect_focus_margin =  get_margin_rect(plate_rect_focus,10,INPUT_SIZE,INPUT_SIZE);
     let plate_focus_margin_mat = src_org_focused_resized.roi(plate_rect_focus_margin);
     cv.imshow('canvasOutput_debug55', plate_focus_margin_mat);
-
-    console.log(plate_rect_focus)
+    // console.log(plate_rect_focus)
     let img_focus_resized_mat=cv.imread(canvas_focused_resized)
     let plate_mat_focus = img_focus_resized_mat.roi(plate_rect_focus);
     cv.imshow('canvasOutput_debug6', plate_mat_focus);
-    // let dst = cv.imread('CanvasInputFocused');
+    endTime = performance.now(); // 終了時間
+    console.log("plateregion extract time")
+    console.log(endTime - startTime); 
+
+    startTime = performance.now(); // 開始時間
     cv.cvtColor(plate_mat_focus, plate_mat_focus, cv.COLOR_RGB2HSV, 0);
     cv.cvtColor(plate_focus_margin_mat, plate_focus_margin_mat, cv.COLOR_RGB2HSV, 0);
     let srcVec = new cv.MatVector();
@@ -148,27 +159,28 @@ function get_plate_img_tf(){
     cv.normalize(hist, hist, 0, 255, cv.NORM_MINMAX, -1, none);
     cv.calcBackProject(dstVec, channels, hist, backproj, ranges, 1);
     cv.imshow('canvasOutput_debug7', backproj);
-
     let backproj_thresh=binarize_with_color_info(backproj,[100,100,100,0],[255,255,255,255]);
     backproj_thresh=erode_image(backproj_thresh,3);
     backproj_thresh=dilate_image(backproj_thresh,20);
     backproj_thresh=erode_image(backproj_thresh,10);
     cv.imshow('canvasOutput_debug8', backproj_thresh);
+    endTime = performance.now(); // 終了時間
+    console.log("backproj time")
+    console.log(endTime - startTime); 
 
+    startTime = performance.now(); // 開始時間
     let {ret_xs,ret_ys}=get_inplate_cnt(backproj_thresh);
     // in plate rect margin , convert coordinate
     // ret_xs=mul_num_to_arr(ret_xs,plate_rect_focus_margin['width']/INPUT_SIZE);
     // ret_ys=mul_num_to_arr(ret_ys,plate_rect_focus_margin['height']/INPUT_SIZE);
     ret_xs=add_num_to_arr(ret_xs,plate_rect_focus_margin['x']);
     ret_ys=add_num_to_arr(ret_ys,plate_rect_focus_margin['y']);
-    //
     ret_xs=mul_num_to_arr(ret_xs,plate_rect_org['width']/INPUT_SIZE);
     ret_ys=mul_num_to_arr(ret_ys,plate_rect_org['height']/INPUT_SIZE);
     ret_xs=add_num_to_arr(ret_xs,plate_rect_org['x']);
     ret_ys=add_num_to_arr(ret_ys,plate_rect_org['y']);
-    console.log(ret_xs);
-    console.log(ret_ys);
     endTime = performance.now(); // 終了時間
+    console.log("fine extraction time")
     console.log(endTime - startTime); 
 
     // debug draw
@@ -197,203 +209,12 @@ function get_plate_img_tf(){
         c.stroke();
     }
     endTime = performance.now(); // 終了時間
+    console.log("draw NP rect time")
     console.log(endTime - startTime); 
 
     
 }
 
-function get_plate_img_tf_(){
-    // let img=document.getElementById('imageSrc');
-    let ctx = canvas.getContext('2d');
-    let ctx_res = canvas_resized.getContext('2d');
-    let image = new Image()
-    image.src = canvas.toDataURL("image/png"); // load original image
-    // console.log(image.src);
-    image.onload = () => {
-
-        // get original image info
-        let width_org=image.width;
-        let height_org=image.height;
-
-        // draw resized image
-        const INPUT_SIZE=256;
-        var dstWidth = INPUT_SIZE;
-        var dstHeight = INPUT_SIZE;
-        canvas_resized.width = dstWidth;
-        canvas_resized.height = dstHeight;
-        ctx_res.drawImage(image, 0, 0, width_org, height_org, 0, 0, dstWidth, dstHeight);
-
-        //  tf predict
-        let img_resized=document.getElementById('canvasInputResized');
-        document.getElementById('result_text').innerHTML = 'pred start';
-        document.getElementById('result_text').innerHTML = 1;
-        // predict(imgElement);
-        const tfimg = tf.browser.fromPixels(img_resized).toFloat();
-        let tf_pred=get_plate(tfimg,0.5);//tf array
-        // const result = await tf.whereAsync(tf_pred.asType('bool'));
-        // console.log(result);
-        let pred_arr=tf_pred.arraySync();
-        // document.getElementById('result_text').innerHTML = pred_arr;
-        // console.log(pred_arr);
-        const pred_arr_ = [].concat(...pred_arr); 
-        console.log(pred_arr_);
-        var pred_arr_255=[];
-        for (let i = 0; i < pred_arr_.length; i++) {
-            pred_arr_255.push(Math.round(pred_arr_[i]*255));
-        }
-        // console.log(pred_arr_255);
-        // open cv
-        let pred_mat = cv.matFromArray(14, 14, cv.CV_8UC1, pred_arr_255);
-        // mat = cv.resize(mat, (INPUT_SIZE, INPUT_SIZE))
-        pred_mat = resize_image(pred_mat,256/14);
-        let plate_rect=get_rect(pred_mat);// {x,y,w,h}
-        let plate_rect_margin = get_margin_rect(plate_rect,10,INPUT_SIZE,INPUT_SIZE);
-        console.log(plate_rect_margin);
-
-        // 元画像での候補領域矩形座標
-        let plate_rect_candidate =  get_margin_rect(plate_rect,20,INPUT_SIZE,INPUT_SIZE);
-        let plate_rect_org= convert_rect(plate_rect_candidate,width_org/INPUT_SIZE,height_org/INPUT_SIZE);//元座標
-        let src_org = cv.imread(canvas);
-        let src_org_focused=src_org.roi(plate_rect_org);
-        let src_org_focused_resized=resize_image_(src_org_focused,INPUT_SIZE,INPUT_SIZE);
-        cv.imshow('canvasInputFocused', src_org_focused);
-        cv.imshow('canvasInputFocusedResized', src_org_focused_resized);
-
-        //候補領域画像で再検査
-        //  tf predict
-        let img_focus_resized=document.getElementById('canvasInputFocusedResized');
-        // predict(imgElement);
-        const tfimgf = tf.browser.fromPixels(img_focus_resized).toFloat();
-        let tf_predf=get_plate(tfimgf,0.6);//tf array
-        // const result = await tf.whereAsync(tf_pred.asType('bool'));
-        // console.log(result);
-        let predf_arr=tf_predf.arraySync();
-        // document.getElementById('result_text').innerHTML = pred_arr;
-        // console.log(pred_arr);
-        const predf_arr_ = [].concat(...predf_arr); 
-        console.log(predf_arr_);
-        var predf_arr_255=[];
-        for (let i = 0; i < predf_arr_.length; i++) {
-            predf_arr_255.push(Math.round(predf_arr_[i]*255));
-        }
-        // console.log(pred_arr_255);
-        // open cv
-        let predf_mat = cv.matFromArray(14, 14, cv.CV_8UC1, predf_arr_255);
-        predf_mat = resize_image(predf_mat,256/14);
-        // let {ret_xs,ret_ys}=get_inplate_cnt(predf_mat);
-        cv.imshow('canvasOutput_debug5', predf_mat);
-
-        // ret_xs=mul_num_to_arr(ret_xs,plate_rect_org['width']/INPUT_SIZE);
-        // ret_ys=mul_num_to_arr(ret_ys,plate_rect_org['height']/INPUT_SIZE);
-        // ret_xs=add_num_to_arr(ret_xs,plate_rect_org['x']);
-        // ret_ys=add_num_to_arr(ret_ys,plate_rect_org['y']);
-        // console.log(ret_xs);
-        // console.log(ret_ys);
-
-        // プレート領域取得
-        let plate_rect_focus=get_rect(predf_mat);
-        let plate_rect_focus_margin =  get_margin_rect(plate_rect_focus,10,INPUT_SIZE,INPUT_SIZE);
-        let plate_focus_margin_mat = src_org_focused_resized.roi(plate_rect_focus_margin);
-        cv.imshow('canvasOutput_debug55', plate_focus_margin_mat);
-
-        console.log(plate_rect_focus)
-        let img_focus_resized_mat=cv.imread(canvas_focused_resized)
-        let plate_mat_focus = img_focus_resized_mat.roi(plate_rect_focus);
-        cv.imshow('canvasOutput_debug6', plate_mat_focus);
-        // let dst = cv.imread('CanvasInputFocused');
-        cv.cvtColor(plate_mat_focus, plate_mat_focus, cv.COLOR_RGB2HSV, 0);
-        cv.cvtColor(plate_focus_margin_mat, plate_focus_margin_mat, cv.COLOR_RGB2HSV, 0);
-        let srcVec = new cv.MatVector();
-        let dstVec = new cv.MatVector();
-        srcVec.push_back(plate_mat_focus); dstVec.push_back(plate_focus_margin_mat);
-        let backproj = new cv.Mat();
-        let none = new cv.Mat();
-        let mask = new cv.Mat();
-        let hist = new cv.Mat();
-        let channels = [0,1,2];
-        let histSize = [11,11,11];
-        let ranges = [0, 256,0,256,0,256];
-        let accumulate = false;
-        cv.calcHist(srcVec, channels, mask, hist, histSize, ranges, accumulate);
-        cv.normalize(hist, hist, 0, 255, cv.NORM_MINMAX, -1, none);
-        cv.calcBackProject(dstVec, channels, hist, backproj, ranges, 1);
-        cv.imshow('canvasOutput_debug7', backproj);
-
-        let backproj_thresh=binarize_with_color_info(backproj,[100,100,100,0],[255,255,255,255]);
-        backproj_thresh=erode_image(backproj_thresh,3);
-        backproj_thresh=dilate_image(backproj_thresh,20);
-        backproj_thresh=erode_image(backproj_thresh,10);
-        cv.imshow('canvasOutput_debug8', backproj_thresh);
-
-        let {ret_xs,ret_ys}=get_inplate_cnt(backproj_thresh);
-        // in plate rect margin , convert coordinate
-        // ret_xs=mul_num_to_arr(ret_xs,plate_rect_focus_margin['width']/INPUT_SIZE);
-        // ret_ys=mul_num_to_arr(ret_ys,plate_rect_focus_margin['height']/INPUT_SIZE);
-        ret_xs=add_num_to_arr(ret_xs,plate_rect_focus_margin['x']);
-        ret_ys=add_num_to_arr(ret_ys,plate_rect_focus_margin['y']);
-        //
-        ret_xs=mul_num_to_arr(ret_xs,plate_rect_org['width']/INPUT_SIZE);
-        ret_ys=mul_num_to_arr(ret_ys,plate_rect_org['height']/INPUT_SIZE);
-        ret_xs=add_num_to_arr(ret_xs,plate_rect_org['x']);
-        ret_ys=add_num_to_arr(ret_ys,plate_rect_org['y']);
-        console.log(ret_xs);
-        console.log(ret_ys);
-
-
-
-        // プレート領域の色
-        // // plate_mat = src.roi(plate_rect);
-        // let src = cv.imread(canvas_resized);
-        // plate_mat=src.roi(plate_rect_minus_margin);
-        // plate_margin_mat=src.roi(plate_rect_margin);
-        // cv.imshow('canvasOutput_debug', plate_margin_mat);
-        // let {ret_R,ret_G,ret_B} = get_plate_rgb(plate_mat);
-        // // プレート領域カラーで領域ちゅうしゅつ
-        // let plate_region_mat = new cv.Mat();
-        // let color_margin=65;
-        // let low = new cv.Mat(plate_margin_mat.rows, plate_margin_mat.cols, plate_margin_mat.type(), [ret_R-color_margin,ret_G-color_margin,ret_B-color_margin, 0]);
-        // let high = new cv.Mat(plate_margin_mat.rows, plate_margin_mat.cols, plate_margin_mat.type(), [ret_R+color_margin,ret_G+color_margin,ret_B+color_margin, 255]);
-        // cv.inRange(plate_margin_mat, low, high, plate_region_mat);
-        // // plate_region_mat =erode_image(plate_region_mat);
-        // cv.imshow('canvasOutput_debug2', plate_region_mat);
-
-        // //
-        // let {ret_xs,ret_ys}=get_inplate_cnt(plate_region_mat);
-        // ret_xs=margin2(ret_xs,plate_rect_margin['x']);
-        // ret_ys=margin2(ret_ys,plate_rect_margin['y']);
-        // console.log(ret_xs);
-        // console.log(ret_ys);
-
-        // debug draw
-        var canvas_out = document.getElementById('canvasOutput_debug4');
-        var c = canvas_out.getContext('2d');
-        let image_out = new Image()
-        image_out.src = canvas.toDataURL("image/png");
-        image_out.onload = () => {
-            canvas_out.width = image_out.width;
-            canvas_out.height = image_out.height;
-            c.drawImage(image_out, 0, 0);
-            // 三角形　１つ目
-            c.strokeStyle = 'red';  // 線の色
-            // パスの開始
-            c.beginPath();
-            for (let i = 0; i < ret_xs.length; ++i) {
-                if (i==0){
-                    c.moveTo(ret_xs[i],ret_ys[i]);
-                }else{
-                    c.lineTo(ret_xs[i],ret_ys[i]);
-                }
-            }
-            c.closePath();
-            // 描画
-            c.stroke();
-        }
-    
-        
-    
-
-    }
-}
 
 function add_num_to_arr(arr,num){
     let ret_arr=[];
@@ -409,6 +230,8 @@ function mul_num_to_arr(arr,num){
     }
     return ret_arr;
 }
+
+// rect矩形領域にマージンを加えて出力
 function get_margin_rect(rect,margin,xlim,ylim){
     let rect_margin={}
     rect_margin['x']=Math.max(0,rect['x']-margin);
@@ -527,7 +350,7 @@ function get_inplate_cnt(src){
         let cnt = contours.get(i);
         // You can try more different parameters
         let cnt_length = cv.arcLength(cnt, true);
-        console.log(cnt_length)
+        // console.log(cnt_length)
         // cv.approxPolyDP(cnt, tmp, 3, false);
         cv.approxPolyDP(cnt, tmp, cnt_length*0.06, false);
         let area = cv.contourArea(tmp, false);
@@ -535,8 +358,8 @@ function get_inplate_cnt(src){
         if (true){
         // if (polygonnum<24 && polygonnum>4 && area>80){
         // if (polygonnum<14 && polygonnum>8 && area>400){
-            console.log(tmp.data32S);
-            console.log(tmp);
+            // console.log(tmp.data32S);
+            // console.log(tmp);
             let temp_x=[];
             let temp_y=[];
             for (let k = 0; k < tmp.data32S.length/2; ++k){
@@ -677,7 +500,7 @@ function get_rect(mat){
         }
         cnt.delete();
     }
-    console.log(rect);
+    // console.log(rect);
     return rect;
     
 }
@@ -715,48 +538,8 @@ function get_plate(tfArray, threshold){
     let Yr = model.predict(reshaped_rs_tfArray); //tf array
     Yr = tf.squeeze(Yr); // (1,x,x,1) => (x,x)
     // let Yr_array = Yr.arraySync();
-    console.log(Yr);
-    console.log(Yr.shape);
-
-    // let Yr_resized=tf.image.resizeNearestNeighbor (Yr.reshape([Yr.shape[0],Yr.shape[1],1]), [INPUT_SIZE,INPUT_SIZE], false);
-    // let masked=tf.mul(resized_tfArray,Yr_resized.greater(thresh_arr));
-    // console.log(masked.shape);
-    // // masked.print();
-    // let masked_array=masked.arraySync();
-    // console.log(masked_array);
-
-    // let masked_array_ = [].concat(...masked_array); 
-    // // masked_array_ = [].concat(...masked_array_); // flatten
-    // console.log(masked_array_);
-    // var masked_arr_255_R=[];
-    // var masked_arr_255_G=[];
-    // var masked_arr_255_B=[];
-    // for (let i = 0; i < masked_array_.length; i++) {
-    //     masked_arr_255_R.push(Math.round(masked_array_[i][0]));
-    //     masked_arr_255_G.push(Math.round(masked_array_[i][1]));
-    //     masked_arr_255_B.push(Math.round(masked_array_[i][2]));
-    // }
-    // console.log(masked_arr_255_R);
-    // // open cv
-    // // pred_arr_255=[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,255,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0];
-    // let mat_R = cv.matFromArray(256, 256, cv.CV_8UC1, masked_arr_255_R);
-    // let mat_G = cv.matFromArray(256, 256, cv.CV_8UC1, masked_arr_255_G);
-    // let mat_B = cv.matFromArray(256, 256, cv.CV_8UC1, masked_arr_255_B);
-    // let rgbPlanes = new cv.MatVector();
-    // let rgb = new cv.Mat();
-    // // Push a Mat back into MatVector
-    // rgbPlanes.push_back(mat_R);
-    // rgbPlanes.push_back(mat_G);
-    // rgbPlanes.push_back(mat_B);
-    // cv.merge(rgbPlanes, rgb);
-    // // mat = cv.resize(mat, (INPUT_SIZE, INPUT_SIZE))
-    
-    // // mat_info_(mat);
-    // cv.imshow('canvasOutput_debug2', rgb);
-
-    // console.log(Yr.max());
-    // Yr.max().print();
-    // return tf.squeeze(Yr).greater(thresh_arr).arraySync();
+    // console.log(Yr);
+    // console.log(Yr.shape);
     return Yr.greater(thresh_arr);
 }
 

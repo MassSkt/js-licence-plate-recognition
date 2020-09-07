@@ -36,7 +36,7 @@ function drawOrgImage(url) {
 }
 
 // ナンバープレートを描画する関数
-function get_plate_img_tf(){
+function get_plate_area_and_draw(){
     const INPUT_SIZE=256;
     const OUT_FEATURE_SIZE=14;
 

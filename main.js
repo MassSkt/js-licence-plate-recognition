@@ -15,10 +15,9 @@ document.querySelector('input[type="file"]').onchange = function() {
 // model の読み込み　https://js.tensorflow.org/api/1.2.6/
 var model=0;
 async function model_load(){
-    // load model
+    // load model IP は実態に合わせて修正してください
     // const path = "http://192.168.100.105:8080/tfjs/model.json";
     const path = "http://192.168.1.5:8080/tfjs/model.json";
-    // const model = await tf.loadLayersModel(path);
     model = await tf.loadLayersModel(path);
   }
 model_load();
@@ -35,8 +34,8 @@ function drawOrgImage(url) {
     }
 }
 
-// ナンバープレートを描画する関数
-function get_plate_area_and_draw(){
+// ナンバープレートの頂点を取得する関数（デバックで描画）
+function get_plate_area_points(){
     //モデルのインプット、アウトプットサイズ、モデルに応じて変更
     const INPUT_SIZE=256;
     const OUT_FEATURE_SIZE=14;
@@ -78,7 +77,7 @@ function get_plate_area_and_draw(){
     // open cv でナンバープレート反応出力領域を抽出
     startTime = performance.now(); // 開始時間
     let pred_mat = cv.matFromArray(OUT_FEATURE_SIZE, OUT_FEATURE_SIZE, cv.CV_8UC1, pred_arr_255);
-    pred_mat = resize_image(pred_mat,INPUT_SIZE/OUT_FEATURE_SIZE);
+    pred_mat = resize_image_by_ratio(pred_mat,INPUT_SIZE/OUT_FEATURE_SIZE);
     let plate_rect=get_rect(pred_mat);// {x,y,w,h}
     let plate_rect_margin = get_margin_rect(plate_rect,10,INPUT_SIZE,INPUT_SIZE);
     // console.log(plate_rect_margin);
@@ -90,7 +89,6 @@ function get_plate_area_and_draw(){
     startTime = performance.now(); // 開始時間
     let plate_rect_candidate =  get_margin_rect(plate_rect,20,INPUT_SIZE,INPUT_SIZE);
     let plate_rect_org= convert_rect(plate_rect_candidate,width_org/INPUT_SIZE,height_org/INPUT_SIZE);//元座標
-    // let src_org = cv.imread(canvas);
     let src_org_focused=src_org.roi(plate_rect_org);
     let src_org_focused_resized=resize_image_(src_org_focused,INPUT_SIZE,INPUT_SIZE);
     cv.imshow('canvasInputFocused', src_org_focused);
@@ -119,8 +117,7 @@ function get_plate_area_and_draw(){
     // open cv
     startTime = performance.now(); // 開始時間
     let predf_mat = cv.matFromArray(14, 14, cv.CV_8UC1, predf_arr_255);
-    predf_mat = resize_image(predf_mat,256/14);
-    // let {ret_xs,ret_ys}=get_inplate_cnt(predf_mat);
+    predf_mat = resize_image_by_ratio(predf_mat,256/14);
     cv.imshow('canvasOutput_debug5', predf_mat);
     endTime = performance.now(); // 終了時間
     console.log("draw extracted image predict time")
@@ -133,11 +130,11 @@ function get_plate_area_and_draw(){
     let plate_rect_focus=get_rect(predf_mat);
     let plate_rect_focus_margin =  get_margin_rect(plate_rect_focus,10,INPUT_SIZE,INPUT_SIZE);
     let plate_focus_margin_mat = src_org_focused_resized.roi(plate_rect_focus_margin);
-    cv.imshow('canvasOutput_debug55', plate_focus_margin_mat);
+    cv.imshow('canvasOutput_debug55', plate_focus_margin_mat); //debug
     // console.log(plate_rect_focus)
     let img_focus_resized_mat=cv.imread(canvas_focused_resized)
     let plate_mat_focus = img_focus_resized_mat.roi(plate_rect_focus);
-    cv.imshow('canvasOutput_debug6', plate_mat_focus);
+    cv.imshow('canvasOutput_debug6', plate_mat_focus); //debug
     endTime = performance.now(); // 終了時間
     console.log("plateregion extract time")
     console.log(endTime - startTime); 
@@ -170,16 +167,16 @@ function get_plate_area_and_draw(){
     console.log(endTime - startTime); 
 
     startTime = performance.now(); // 開始時間
-    let {ret_xs,ret_ys}=get_inplate_cnt(backproj_thresh);
+    let {return_xs,return_ys}=get_inplate_cnt(backproj_thresh);
     // in plate rect margin , convert coordinate
     // ret_xs=mul_num_to_arr(ret_xs,plate_rect_focus_margin['width']/INPUT_SIZE);
-    // ret_ys=mul_num_to_arr(ret_ys,plate_rect_focus_margin['height']/INPUT_SIZE);
-    ret_xs=add_num_to_arr(ret_xs,plate_rect_focus_margin['x']);
-    ret_ys=add_num_to_arr(ret_ys,plate_rect_focus_margin['y']);
-    ret_xs=mul_num_to_arr(ret_xs,plate_rect_org['width']/INPUT_SIZE);
-    ret_ys=mul_num_to_arr(ret_ys,plate_rect_org['height']/INPUT_SIZE);
-    ret_xs=add_num_to_arr(ret_xs,plate_rect_org['x']);
-    ret_ys=add_num_to_arr(ret_ys,plate_rect_org['y']);
+    // return_ys=mul_num_to_arr(return_ys,plate_rect_focus_margin['height']/INPUT_SIZE);
+    return_xs=add_num_to_arr(return_xs,plate_rect_focus_margin['x']);
+    return_ys=add_num_to_arr(return_ys,plate_rect_focus_margin['y']);
+    return_xs=mul_num_to_arr(return_xs,plate_rect_org['width']/INPUT_SIZE);
+    return_ys=mul_num_to_arr(return_ys,plate_rect_org['height']/INPUT_SIZE);
+    return_xs=add_num_to_arr(return_xs,plate_rect_org['x']);
+    return_ys=add_num_to_arr(return_ys,plate_rect_org['y']);
     endTime = performance.now(); // 終了時間
     console.log("fine extraction time")
     console.log(endTime - startTime); 
@@ -198,11 +195,11 @@ function get_plate_area_and_draw(){
         c.strokeStyle = 'red';  // 線の色
         // パスの開始
         c.beginPath();
-        for (let i = 0; i < ret_xs.length; ++i) {
+        for (let i = 0; i < return_xs.length; ++i) {
             if (i==0){
-                c.moveTo(ret_xs[i],ret_ys[i]);
+                c.moveTo(return_xs[i],return_ys[i]);
             }else{
-                c.lineTo(ret_xs[i],ret_ys[i]);
+                c.lineTo(return_xs[i],return_ys[i]);
             }
         }
         c.closePath();
@@ -212,6 +209,8 @@ function get_plate_area_and_draw(){
     endTime = performance.now(); // 終了時間
     console.log("draw NP rect time")
     console.log(endTime - startTime); 
+
+    return {return_xs,return_ys}
 
     
 }
@@ -252,100 +251,21 @@ function convert_rect(rect,width_ratio,height_ratio){
 
 }
 
-function get_plate_4points(src){
 
-    let dst = cv.Mat.zeros(src.rows, src.cols, cv.CV_8UC3);
-    let contours = new cv.MatVector();
-    let hierarchy = new cv.Mat();
-    let poly = new cv.MatVector();
-    cv.findContours(src, contours, hierarchy, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE);
-    // approximates each contour to polygon
-    // 最も中心のポリゴンを取得
-    let lefttop_score=10000;
-    let righttop_score=10000;
-    let leftbottom_score=10000;
-    let rightbottom_score=10000;
-    let ret_xs=[0,0,0,0];
-    let ret_ys=[0,0,0,0];
-    let x_max=src.cols;
-    let y_max=src.rows;
-    for (let i = 0; i < contours.size(); ++i) {
-        let tmp = new cv.Mat();
-        let cnt = contours.get(i);
-        // You can try more different parameters
-        let cnt_length = cv.arcLength(cnt, true);
-        console.log(cnt_length)
-        // cv.approxPolyDP(cnt, tmp, 3, false);
-        cv.approxPolyDP(cnt, tmp, cnt_length*0.06, false);
-        let area = cv.contourArea(tmp, false);
-        let polygonnum = tmp.data32S.length;
-        // if (true){
-        if (polygonnum<24 && polygonnum>2 && area>5){
-            console.log(tmp.data32S);
-            console.log(tmp);
-            let lefttop_score_temp=temp_x*temp_x;
-            let righttop_score_temp=10000;
-            let leftbottom_score_temp=10000;
-            let rightbottom_score_temp=10000;
-
-            for (let k = 0; k < tmp.data32S.length/2; ++k){
-                temp_x=tmp.data32S[k*2];
-                temp_y=tmp.data32S[k*2+1];
-                let lefttop_score_temp=temp_x*temp_x;
-                let righttop_score_temp=10000;
-                let leftbottom_score_temp=10000;
-                let rightbottom_score_temp=10000;
-            
-            }
-
-
-            // console.log(average_arr_int(temp_x));
-            // console.log(average_arr_int(temp_y));
-            let center_x=average_arr_int(temp_x);
-            let center_y=average_arr_int(temp_y);
-            let temp_center_score=Math.abs(src.cols/2-center_x)+Math.abs(src.rows/2-center_y);
-            // console.log(temp_center_score);
-            if (temp_center_score<center_score){
-                center_score=temp_center_score;
-                ret_xs=temp_x;
-                ret_ys=temp_y;
-            }
-
-            poly.push_back(tmp);
-        }
-        cnt.delete();
-        tmp.delete();
-    }
-    // draw contours with random Scalar Debug
-    // for (let i = 0; i < contours.size(); ++i) {
-    for (let i = 0; i < poly.size(); ++i) {
-        let color = new cv.Scalar(Math.round(Math.random() * 255), Math.round(Math.random() * 255),
-                                  Math.round(Math.random() * 255));
-        cv.drawContours(dst, poly, i, color, 1, 8, hierarchy, 0);
-    }
-    cv.imshow('canvasOutput_debug3', dst);
-
-    console.log({ret_xs,ret_ys});
-    return {ret_xs,ret_ys};
-};
-
-
+// 二値画像からplate領域座標（4点）を取得する関数
 function get_inplate_cnt(src){
 
-    // erode
-    // src =erode_image(src)
-
-    let dst = cv.Mat.zeros(src.rows, src.cols, cv.CV_8UC3);
-
+    // コンターの取得
     let contours = new cv.MatVector();
     let hierarchy = new cv.Mat();
     let poly = new cv.MatVector();
     cv.findContours(src, contours, hierarchy, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE);
-    // approximates each contour to polygon
-    // 最も中心のポリゴンを取得
+    // 　複数のコンター（１フラグが立った領域）について最も中心のポリゴンを取得
     let center_score=10000;
-    let ret_xs=0;
-    let ret_ys=0;
+    let ret_xs=[];
+    let ret_ys=[];
+    // let center={x:0,y:0};
+    let min_rect_vertices=[];
     for (let i = 0; i < contours.size(); ++i) {
         let tmp = new cv.Mat();
         let cnt = contours.get(i);
@@ -377,6 +297,9 @@ function get_inplate_cnt(src){
                 center_score=temp_center_score;
                 ret_xs=temp_x;
                 ret_ys=temp_y;
+                // center = cv.minEnclosingCircle(cnt).center;//{x:,y:}
+                let rotatedRect = cv.minAreaRect(cnt);
+                min_rect_vertices = cv.RotatedRect.points(rotatedRect);//vertices [{x:,y:},{x:,y:}]
             }
 
             poly.push_back(tmp);
@@ -384,8 +307,12 @@ function get_inplate_cnt(src){
         cnt.delete();
         tmp.delete();
     }
-    // draw contours with random Scalar Debug
-    // for (let i = 0; i < contours.size(); ++i) {
+
+    //頂点の4点に収束
+    let {return_xs,return_ys}=get_4points_from_polygon(ret_xs,ret_ys,min_rect_vertices);
+
+    // DEBUG draw contours with random Scalar Debug
+    let dst = cv.Mat.zeros(src.rows, src.cols, cv.CV_8UC3);
     for (let i = 0; i < poly.size(); ++i) {
         let color = new cv.Scalar(Math.round(Math.random() * 255), Math.round(Math.random() * 255),
                                   Math.round(Math.random() * 255));
@@ -393,9 +320,87 @@ function get_inplate_cnt(src){
     }
     cv.imshow('canvasOutput_debug3', dst);
 
-    console.log({ret_xs,ret_ys});
-    return {ret_xs,ret_ys};
+    console.log({return_xs,return_ys});
+    return {return_xs,return_ys};
 };
+
+function get_4points_from_polygon(xs,ys,min_rect_vertices){
+    // 中心点の計算
+    // let center_x=average_arr_int(xs);
+    // let center_y=average_arr_int(ys);
+    // let center_x=center.x;
+    // let center_y=center.y;
+    let min_rect_xs=[];
+    let min_rect_ys=[];
+    for (let i=0; i<4; ++i){
+        min_rect_xs.push(min_rect_vertices[i].x);
+        min_rect_ys.push(min_rect_vertices[i].y);
+    }
+    let center_x=average_arr_int(min_rect_xs);
+    let center_y=average_arr_int(min_rect_ys);
+
+    let top_left_idx=0;
+    let top_right_idx=0;
+    let bottom_left_idx=0;
+    let bottom_right_idx=0;
+    
+    let top_left_score=0;
+    let top_right_score=0;
+    let bottom_left_score=0;
+    let bottom_right_score=0;
+
+    let top_left_score_temp=0;
+    let top_right_score_temp=0;
+    let bottom_left_score_temp=0;
+    let bottom_right_score_temp=0;
+
+    console.log(xs);
+    console.log(ys);
+    console.log(center_x);
+    console.log(center_y);
+    // 中心から各角（遠い点）を算出
+    for (let i = 0; i < xs.length; ++i){
+        top_left_score_temp=(center_x-xs[i])+(center_y-ys[i]);
+        top_right_score_temp=(xs[i]-center_x)+(center_y-ys[i]);
+        bottom_left_score_temp=(center_x-xs[i])+(ys[i]-center_y);
+        bottom_right_score_temp=(xs[i]-center_x)+(ys[i]-center_y);
+        if (top_left_score_temp > top_left_score){
+            top_left_idx=i;
+            top_left_score=top_left_score_temp;
+        }
+        if (top_right_score_temp > top_right_score){
+            top_right_idx=i;
+            top_right_score=top_right_score_temp;
+        }
+        if (bottom_left_score_temp > bottom_left_score){
+            bottom_left_idx=i;
+            bottom_left_score=bottom_left_score_temp;
+        }
+        if (bottom_right_score_temp > bottom_right_score){
+            bottom_right_idx=i;
+            bottom_right_score=bottom_right_score_temp;
+        }
+    }
+
+    let return_xs=[];
+    let return_ys=[];
+
+    return_xs.push(xs[top_left_idx]);
+    return_xs.push(xs[top_right_idx]);
+    return_xs.push(xs[bottom_right_idx]);
+    return_xs.push(xs[bottom_left_idx]);
+
+    return_ys.push(ys[top_left_idx]);
+    return_ys.push(ys[top_right_idx]);
+    return_ys.push(ys[bottom_right_idx]);
+    return_ys.push(ys[bottom_left_idx]);
+
+    // return_xs=min_rect_xs;
+    // return_ys=min_rect_ys;
+
+    return {return_xs,return_ys}
+
+}
 
 
 function get_plate_rgb(src){
@@ -568,7 +573,7 @@ function get_plate_img(){
     // debug
     // let dst_d=binarize_with_color_info(mat);
     let resize_ratio=DEFINED_HEIGHT/mat.rows;
-    let dst_d=resize_image(mat,resize_ratio);
+    let dst_d=resize_image_by_ratio(mat,resize_ratio);
     dst_d=sharp_edge(dst_d);
     dst_d=binarize_with_color_info(dst_d);
     dst_d=erode_image(dst_d)
@@ -580,6 +585,7 @@ function get_plate_img(){
     dst.delete();
 };
 
+// 画像のリサイズ関数
 function resize_image_(src,width,height){
     let dst = new cv.Mat();
     let dsize = new cv.Size(Math.round(width),Math.round(height));
@@ -588,7 +594,7 @@ function resize_image_(src,width,height){
     return dst;
 }
 // 画像のリサイズ関数
-function resize_image(src,ratio){
+function resize_image_by_ratio(src,ratio){
     let dst = new cv.Mat();
     // get original image size
     cv.resize(src, dst, new cv.Size(0,0),ratio,ratio, cv.INTER_NEAREST );
@@ -679,7 +685,7 @@ function processing(src){
 
     //  resize (unify size)
     let resize_ratio=DEFINED_HEIGHT/src.rows;
-    src=resize_image(src,resize_ratio);
+    src=resize_image_by_ratio(src,resize_ratio);
 
     // shap edge
     src=sharp_edge(src);

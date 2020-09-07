@@ -37,27 +37,28 @@ function drawOrgImage(url) {
 
 // ナンバープレートを描画する関数
 function get_plate_area_and_draw(){
+    //モデルのインプット、アウトプットサイズ、モデルに応じて変更
     const INPUT_SIZE=256;
     const OUT_FEATURE_SIZE=14;
 
-    // 元画像の取得 open cv
+    // canvasから元画像の取得 open cv
     let startTime = performance.now(); // 開始時間
-    let org_mat=cv.imread(canvas);
-    let width_org=org_mat.cols;
-    let height_org=org_mat.rows;
+    let src_org=cv.imread(canvas);
+    let width_org=src_org.cols;
+    let height_org=src_org.rows;
     let endTime = performance.now(); // 終了時間
     console.log("read imge time")
     console.log(endTime - startTime); 
 
     // resize された画像を描画 open cv
     startTime = performance.now(); // 開始時間
-    let resized_mat = resize_image_(org_mat,INPUT_SIZE,INPUT_SIZE);
+    let resized_mat = resize_image_(src_org,INPUT_SIZE,INPUT_SIZE);
     cv.imshow('canvasInputResized', resized_mat);
     endTime = performance.now(); // 終了時間
     console.log("resize imge time")
     console.log(endTime - startTime); 
 
-    //  TFによる予測
+    //  キャンバスから取得し、TFによる予測（一回キャンバスに落とさないとTFで取得できないという前提で書いているが、正しいか不明）
     startTime = performance.now(); // 開始時間
     let img_resized=document.getElementById('canvasInputResized');
     // document.getElementById('result_text').innerHTML = 'pred start';
@@ -89,7 +90,7 @@ function get_plate_area_and_draw(){
     startTime = performance.now(); // 開始時間
     let plate_rect_candidate =  get_margin_rect(plate_rect,20,INPUT_SIZE,INPUT_SIZE);
     let plate_rect_org= convert_rect(plate_rect_candidate,width_org/INPUT_SIZE,height_org/INPUT_SIZE);//元座標
-    let src_org = cv.imread(canvas);
+    // let src_org = cv.imread(canvas);
     let src_org_focused=src_org.roi(plate_rect_org);
     let src_org_focused_resized=resize_image_(src_org_focused,INPUT_SIZE,INPUT_SIZE);
     cv.imshow('canvasInputFocused', src_org_focused);

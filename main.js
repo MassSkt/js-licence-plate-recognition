@@ -12,6 +12,16 @@ document.querySelector('input[type="file"]').onchange = function() {
     }
 }
 
+//  Open CV 読み込み完了
+function onOpenCvReady() {
+    document.getElementById('status_cv').innerHTML = 'OpenCV.js is ready.';
+  }
+  
+// tensorflow js 読み込み完了
+function onTfJsReady() {
+    document.getElementById('status_tf').innerHTML = 'Tf.js is ready.';
+}
+
 // model の読み込み　https://js.tensorflow.org/api/1.2.6/
 var model=0;
 async function model_load(){
@@ -241,6 +251,7 @@ function get_margin_rect(rect,margin,xlim,ylim){
     return rect_margin;
 }
 
+// 縮尺変換
 function convert_rect(rect,width_ratio,height_ratio){
     let ret_rect={};//元座標
     ret_rect['x']=Math.round(rect['x']*width_ratio);
@@ -402,7 +413,66 @@ function get_4points_from_polygon(xs,ys,min_rect_vertices){
 
 }
 
+function average_arr_int(arr){
+    let sum=0;
+    for (let i = 0; i < arr.length; ++i) {
+        sum += arr[i];
+    }
+    let average = sum/arr.length;
+    average = Math.round(average);
+    return average;
+}
 
+function get_rect(mat){
+    let contours = new cv.MatVector();
+    let hierarchy = new cv.Mat();
+    cv.findContours(mat, contours, hierarchy, cv.RETR_CCOMP, cv.CHAIN_APPROX_SIMPLE);
+    // let cnt = contours.get(0);
+    // let rect = cv.boundingRect(cnt);
+    let rect=0;
+    let area=0;
+    for (let i = 0; i < contours.size(); ++i) {
+        let cnt = contours.get(i);
+        let area_temp = cv.contourArea(cnt, false);
+
+        if (i==0){
+            rect = cv.boundingRect(cnt);
+            area = area_temp;
+        }else{
+            let rect_temp =  cv.boundingRect(cnt);
+            // if (rect_temp['y']>rect['y']){
+            //     rect=rect_temp;
+            // }
+            if (area_temp>area){
+                rect=rect_temp;
+            }
+        }
+        cnt.delete();
+    }
+    // console.log(rect);
+    return rect;
+    
+}
+
+// 画像のリサイズ関数
+function resize_image_(src,width,height){
+    let dst = new cv.Mat();
+    let dsize = new cv.Size(Math.round(width),Math.round(height));
+    // You can try more different parameters
+    cv.resize(src, dst, dsize, 0, 0, cv.INTER_AREA);
+    return dst;
+}
+// 画像のリサイズ関数
+function resize_image_by_ratio(src,ratio){
+    let dst = new cv.Mat();
+    // get original image size
+    cv.resize(src, dst, new cv.Size(0,0),ratio,ratio, cv.INTER_NEAREST );
+    return dst;
+};
+
+
+
+//////////// OLD functions //////////////////////////
 function get_plate_rgb(src){
     let src_hsv = new cv.Mat();
     cv.cvtColor(src, src_hsv, cv.COLOR_RGB2HSV, 0);//get hsv image too
@@ -470,46 +540,6 @@ function get_plate_rgb(src){
     // return dst;
 };
 
-function average_arr_int(arr){
-    let sum=0;
-    for (let i = 0; i < arr.length; ++i) {
-        sum += arr[i];
-    }
-    let average = sum/arr.length;
-    average = Math.round(average);
-    return average;
-}
-
-function get_rect(mat){
-    let contours = new cv.MatVector();
-    let hierarchy = new cv.Mat();
-    cv.findContours(mat, contours, hierarchy, cv.RETR_CCOMP, cv.CHAIN_APPROX_SIMPLE);
-    // let cnt = contours.get(0);
-    // let rect = cv.boundingRect(cnt);
-    let rect=0;
-    let area=0;
-    for (let i = 0; i < contours.size(); ++i) {
-        let cnt = contours.get(i);
-        let area_temp = cv.contourArea(cnt, false);
-
-        if (i==0){
-            rect = cv.boundingRect(cnt);
-            area = area_temp;
-        }else{
-            let rect_temp =  cv.boundingRect(cnt);
-            // if (rect_temp['y']>rect['y']){
-            //     rect=rect_temp;
-            // }
-            if (area_temp>area){
-                rect=rect_temp;
-            }
-        }
-        cnt.delete();
-    }
-    // console.log(rect);
-    return rect;
-    
-}
 
 
 async function predict(imgElement) {
@@ -583,22 +613,6 @@ function get_plate_img(){
     cv.imshow('canvasOutput', dst);
     mat.delete();
     dst.delete();
-};
-
-// 画像のリサイズ関数
-function resize_image_(src,width,height){
-    let dst = new cv.Mat();
-    let dsize = new cv.Size(Math.round(width),Math.round(height));
-    // You can try more different parameters
-    cv.resize(src, dst, dsize, 0, 0, cv.INTER_AREA);
-    return dst;
-}
-// 画像のリサイズ関数
-function resize_image_by_ratio(src,ratio){
-    let dst = new cv.Mat();
-    // get original image size
-    cv.resize(src, dst, new cv.Size(0,0),ratio,ratio, cv.INTER_NEAREST );
-    return dst;
 };
 
 
@@ -741,12 +755,3 @@ function binarize(src){
     return dst    
 }
 
-//  Open CV 読み込み完了
-function onOpenCvReady() {
-  document.getElementById('status_cv').innerHTML = 'OpenCV.js is ready.';
-}
-
-// tensorflow js 読み込み完了
-function onTfJsReady() {
-    document.getElementById('status_tf').innerHTML = 'Tf.js is ready.';
-  }
